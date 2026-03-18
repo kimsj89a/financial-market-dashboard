@@ -32,9 +32,9 @@ export async function fetchQuote(symbol) {
   }
 }
 
-export async function fetchAllQuotes() {
+export async function fetchAllQuotes(symbols = SYMBOLS) {
   const results = await Promise.allSettled(
-    SYMBOLS.map(async (s) => {
+    symbols.map(async (s) => {
       const quote = await fetchQuote(s.symbol)
       return { ...s, ...quote }
     })
@@ -43,6 +43,22 @@ export async function fetchAllQuotes() {
   return results
     .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value)
+}
+
+export async function searchSymbol(query) {
+  const url = `/api/yahoo/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`
+  const res = await fetch(url)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.quotes || [])
+    .filter((q) => q.symbol && q.quoteType !== 'OPTION')
+    .map((q) => ({
+      symbol: q.symbol,
+      display: q.symbol,
+      name: q.shortname || q.longname || q.symbol,
+      exchange: q.exchange,
+      type: q.quoteType,
+    }))
 }
 
 export async function fetchChartData(symbol, range = '6mo', interval = '1d') {
