@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts'
+import { t } from '../i18n'
 
 const TIMEZONE_OPTIONS = [
   { label: 'KST', tz: 'Asia/Seoul', offset: 9 },
@@ -18,103 +19,11 @@ const RANGE_OPTIONS = [
   { label: 'MAX', range: 'max', interval: '1mo' },
 ]
 
-const styles = {
-  wrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    background: 'var(--bg-primary)',
-    overflow: 'hidden',
-  },
-  topBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 20px',
-    borderBottom: '1px solid var(--border)',
-  },
-  titleSection: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: 12,
-  },
-  symbolTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: 'var(--text-primary)',
-  },
-  priceLabel: {
-    fontSize: 16,
-    fontWeight: 600,
-    fontVariantNumeric: 'tabular-nums',
-  },
-  changeLabel: (positive) => ({
-    fontSize: 14,
-    fontWeight: 500,
-    color: positive ? 'var(--green)' : 'var(--red)',
-    fontVariantNumeric: 'tabular-nums',
-  }),
-  rangeBar: {
-    display: 'flex',
-    gap: 4,
-  },
-  rangeBtn: (isActive) => ({
-    padding: '5px 10px',
-    borderRadius: 4,
-    border: 'none',
-    background: isActive ? 'var(--accent)' : 'transparent',
-    color: isActive ? '#fff' : 'var(--text-secondary)',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  }),
-  chartContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  loading: {
-    position: 'absolute',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'var(--text-muted)',
-    fontSize: 14,
-  },
-  ohlcBar: {
-    position: 'absolute',
-    top: 8,
-    left: 12,
-    display: 'flex',
-    gap: 16,
-    fontSize: 12,
-    fontFamily: 'monospace',
-    fontVariantNumeric: 'tabular-nums',
-    zIndex: 10,
-    pointerEvents: 'none',
-  },
-  ohlcLabel: {
-    color: 'var(--text-muted)',
-    marginRight: 4,
-  },
-  tzBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    marginRight: 16,
-  },
-  tzBtn: (isActive) => ({
-    padding: '4px 8px',
-    borderRadius: 4,
-    border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
-    background: isActive ? 'rgba(59,130,246,0.15)' : 'transparent',
-    color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  }),
+function getTimezoneOffsetSec(tz) {
+  const now = new Date()
+  const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' })
+  const tzStr = now.toLocaleString('en-US', { timeZone: tz })
+  return (new Date(tzStr) - new Date(utcStr)) / 1000
 }
 
 export default function Chart({
@@ -126,11 +35,22 @@ export default function Chart({
   loading,
   selectedRange,
   onRangeChange,
+  lang,
 }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const [ohlc, setOhlc] = useState(null)
   const [timezone, setTimezone] = useState(TIMEZONE_OPTIONS[0])
+
+  // Shift chart data timestamps to selected timezone
+  const shiftedData = useMemo(() => {
+    if (!chartData || chartData.length === 0) return []
+    const offsetSec = getTimezoneOffsetSec(timezone.tz)
+    return chartData.map((d) => ({
+      ...d,
+      time: d.time + offsetSec,
+    }))
+  }, [chartData, timezone])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -170,8 +90,8 @@ export default function Chart({
       wickDownColor: '#ff1744',
     })
 
-    if (chartData && chartData.length > 0) {
-      candleSeries.setData(chartData)
+    if (shiftedData.length > 0) {
+      candleSeries.setData(shiftedData)
       chart.timeScale().fitContent()
     }
 
@@ -205,94 +125,128 @@ export default function Chart({
       chart.remove()
       chartRef.current = null
     }
-  }, [chartData, selectedRange])
+  }, [shiftedData, selectedRange])
 
   const changeSign = change1d >= 0 ? '+' : ''
+  const showTime = selectedRange === '1d' || selectedRange === '5d'
+
+  const formatOhlcDate = (time) => {
+    if (typeof time === 'object') {
+      return `${time.year}-${String(time.month).padStart(2, '0')}-${String(time.day).padStart(2, '0')}`
+    }
+    const d = new Date(time * 1000)
+    const opts = { year: 'numeric', month: '2-digit', day: '2-digit' }
+    if (showTime) { opts.hour = '2-digit'; opts.minute = '2-digit' }
+    return d.toLocaleString('ko-KR', opts)
+  }
+
+  const ohlcColor = ohlc ? (ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)') : null
+  const fmt = (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.topBar}>
-        <div style={styles.titleSection}>
-          <span style={styles.symbolTitle}>{displayName}</span>
+    <div style={S.wrapper}>
+      <div style={S.topBar}>
+        <div style={S.titleSection}>
+          <span style={S.symbolTitle}>{displayName}</span>
           {price != null && (
             <>
-              <span style={{ ...styles.priceLabel, color: 'var(--text-primary)' }}>
+              <span style={{ ...S.priceLabel, color: 'var(--text-primary)' }}>
                 {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span style={styles.changeLabel(change1d >= 0)}>
+              <span style={S.changeLabel(change1d >= 0)}>
                 {changeSign}{change1d?.toFixed(2)}% (1D)
               </span>
             </>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={styles.tzBar}>
+          <div style={S.tzBar}>
             {TIMEZONE_OPTIONS.map((tz) => (
               <button
                 key={tz.label}
-                style={styles.tzBtn(timezone.label === tz.label)}
+                style={S.tzBtn(timezone.label === tz.label)}
                 onClick={() => setTimezone(tz)}
               >
                 {tz.label}
               </button>
             ))}
           </div>
-          <div style={styles.rangeBar}>
-          {RANGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.range}
-              style={styles.rangeBtn(selectedRange === opt.range)}
-              onClick={() => onRangeChange(opt.range, opt.interval)}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <div style={S.rangeBar}>
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.range}
+                style={S.rangeBtn(selectedRange === opt.range)}
+                onClick={() => onRangeChange(opt.range)}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-      <div style={styles.chartContainer} ref={containerRef}>
-        {loading && <div style={styles.loading}>Loading chart...</div>}
+      <div style={S.chartContainer} ref={containerRef}>
+        {loading && <div style={S.loading}>{t(lang, 'loading')}</div>}
         {ohlc && (
-          <div style={styles.ohlcBar}>
-            <span>
-              <span style={styles.ohlcLabel}>Date</span>
-              <span style={{ color: 'var(--text-primary)' }}>
-                {typeof ohlc.time === 'object'
-                  ? `${ohlc.time.year}-${String(ohlc.time.month).padStart(2, '0')}-${String(ohlc.time.day).padStart(2, '0')}`
-                  : new Date(ohlc.time * 1000).toLocaleString('ko-KR', {
-                      timeZone: timezone.tz,
-                      year: 'numeric', month: '2-digit', day: '2-digit',
-                      ...(selectedRange === '1d' || selectedRange === '5d' ? { hour: '2-digit', minute: '2-digit' } : {}),
-                    })}
-              </span>
-            </span>
-            <span>
-              <span style={styles.ohlcLabel}>O</span>
-              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
-                {ohlc.open?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </span>
-            <span>
-              <span style={styles.ohlcLabel}>H</span>
-              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
-                {ohlc.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </span>
-            <span>
-              <span style={styles.ohlcLabel}>L</span>
-              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
-                {ohlc.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </span>
-            <span>
-              <span style={styles.ohlcLabel}>C</span>
-              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
-                {ohlc.close?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </span>
+          <div style={S.ohlcBar}>
+            <span><span style={S.ohlcLabel}>{t(lang, 'date')}</span><span style={{ color: 'var(--text-primary)' }}>{formatOhlcDate(ohlc.time)}</span></span>
+            <span><span style={S.ohlcLabel}>O</span><span style={{ color: ohlcColor }}>{fmt(ohlc.open)}</span></span>
+            <span><span style={S.ohlcLabel}>H</span><span style={{ color: ohlcColor }}>{fmt(ohlc.high)}</span></span>
+            <span><span style={S.ohlcLabel}>L</span><span style={{ color: ohlcColor }}>{fmt(ohlc.low)}</span></span>
+            <span><span style={S.ohlcLabel}>C</span><span style={{ color: ohlcColor }}>{fmt(ohlc.close)}</span></span>
           </div>
         )}
       </div>
     </div>
   )
+}
+
+const S = {
+  wrapper: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'var(--bg-primary)',
+    overflow: 'hidden',
+  },
+  topBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 20px',
+    borderBottom: '1px solid var(--border)',
+  },
+  titleSection: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 12,
+  },
+  symbolTitle: { fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' },
+  priceLabel: { fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
+  changeLabel: (pos) => ({ fontSize: 14, fontWeight: 500, color: pos ? 'var(--green)' : 'var(--red)', fontVariantNumeric: 'tabular-nums' }),
+  rangeBar: { display: 'flex', gap: 4 },
+  rangeBtn: (a) => ({
+    padding: '5px 10px', borderRadius: 4, border: 'none',
+    background: a ? 'var(--accent)' : 'transparent',
+    color: a ? '#fff' : 'var(--text-secondary)',
+    fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
+  }),
+  chartContainer: { flex: 1, position: 'relative' },
+  loading: {
+    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14,
+  },
+  ohlcBar: {
+    position: 'absolute', top: 8, left: 12, display: 'flex', gap: 16,
+    fontSize: 12, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums',
+    zIndex: 10, pointerEvents: 'none',
+  },
+  ohlcLabel: { color: 'var(--text-muted)', marginRight: 4 },
+  tzBar: { display: 'flex', alignItems: 'center', gap: 4, marginRight: 16 },
+  tzBtn: (a) => ({
+    padding: '4px 8px', borderRadius: 4,
+    border: a ? '1px solid var(--accent)' : '1px solid var(--border)',
+    background: a ? 'rgba(59,130,246,0.15)' : 'transparent',
+    color: a ? 'var(--accent)' : 'var(--text-muted)',
+    fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+  }),
 }
