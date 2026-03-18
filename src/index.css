@@ -23,12 +23,19 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   width: 100vw;
+}
+
+@media (max-width: 767px) {
+  #root {
+    flex-direction: column;
+  }
 }

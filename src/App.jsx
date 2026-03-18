@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Chart from './components/Chart'
 import { fetchAllQuotes, fetchQuote, fetchChartData, searchSymbol, SYMBOLS } from './api/finance'
-import { loadLang, saveLang } from './i18n'
+import { loadLang, saveLang, t } from './i18n'
+import useMobile from './hooks/useMobile'
 import './index.css'
 
 const STORAGE_KEY = 'finance-dashboard-symbols'
@@ -45,6 +46,8 @@ function savePanels(panels) {
 }
 
 export default function App() {
+  const isMobile = useMobile()
+  const [mobileTab, setMobileTab] = useState('chart')
   const [symbolList, setSymbolList] = useState(loadSavedSymbols)
   const [instruments, setInstruments] = useState(
     symbolList.map((s) => ({ ...s, price: null, change1d: null }))
@@ -225,37 +228,96 @@ export default function App() {
 
   const active = instruments.find((i) => i.symbol === activeSymbol) || {}
 
+  const handleMobileSelect = (symbol) => {
+    setActiveSymbol(symbol)
+    setMobileTab('chart')
+  }
+
+  const sidebarProps = {
+    instruments: filteredInstruments,
+    activeSymbol,
+    onSelect: isMobile ? handleMobileSelect : setActiveSymbol,
+    onAdd: handleAdd,
+    onRemove: handleRemove,
+    searchResults,
+    onSearch: handleSearch,
+    searching,
+    panels,
+    activePanel,
+    onPanelChange: setActivePanel,
+    onPanelCreate: handlePanelCreate,
+    onPanelDelete: handlePanelDelete,
+    lang,
+    onLangToggle: handleLangToggle,
+    onReorder: handleReorder,
+    isMobile,
+  }
+
+  const chartProps = {
+    symbol: activeSymbol,
+    displayName: active.display || activeSymbol,
+    price: active.price,
+    change1d: active.change1d,
+    chartData,
+    loading: chartLoading,
+    selectedRange,
+    onRangeChange: (range) => setSelectedRange(range),
+    lang,
+    isMobile,
+  }
+
+  if (isMobile) {
+    return (
+      <>
+        <div style={{ flex: 1, overflow: 'hidden', display: mobileTab === 'chart' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <Chart {...chartProps} />
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden', display: mobileTab === 'list' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <Sidebar {...sidebarProps} />
+        </div>
+        {/* Bottom tab bar */}
+        <div style={mobileTabBar}>
+          <button style={mobileTabBtn(mobileTab === 'chart')} onClick={() => setMobileTab('chart')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>
+            <span>{lang === 'ko' ? '차트' : 'Chart'}</span>
+          </button>
+          <button style={mobileTabBtn(mobileTab === 'list')} onClick={() => setMobileTab('list')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <span>{lang === 'ko' ? '종목' : 'List'}</span>
+          </button>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
-      <Sidebar
-        instruments={filteredInstruments}
-        activeSymbol={activeSymbol}
-        onSelect={setActiveSymbol}
-        onAdd={handleAdd}
-        onRemove={handleRemove}
-        searchResults={searchResults}
-        onSearch={handleSearch}
-        searching={searching}
-        panels={panels}
-        activePanel={activePanel}
-        onPanelChange={setActivePanel}
-        onPanelCreate={handlePanelCreate}
-        onPanelDelete={handlePanelDelete}
-        lang={lang}
-        onLangToggle={handleLangToggle}
-        onReorder={handleReorder}
-      />
-      <Chart
-        symbol={activeSymbol}
-        displayName={active.display || activeSymbol}
-        price={active.price}
-        change1d={active.change1d}
-        chartData={chartData}
-        loading={chartLoading}
-        selectedRange={selectedRange}
-        onRangeChange={(range) => setSelectedRange(range)}
-        lang={lang}
-      />
+      <Sidebar {...sidebarProps} />
+      <Chart {...chartProps} />
     </>
   )
 }
+
+const mobileTabBar = {
+  display: 'flex',
+  borderTop: '1px solid var(--border)',
+  background: 'var(--bg-sidebar)',
+  flexShrink: 0,
+  paddingBottom: 'env(safe-area-inset-bottom)',
+}
+
+const mobileTabBtn = (isActive) => ({
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 2,
+  padding: '8px 0',
+  border: 'none',
+  background: 'transparent',
+  color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+  fontSize: 10,
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'color 0.15s',
+})

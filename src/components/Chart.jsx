@@ -36,6 +36,7 @@ export default function Chart({
   selectedRange,
   onRangeChange,
   lang,
+  isMobile,
 }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
@@ -145,7 +146,7 @@ export default function Chart({
 
   return (
     <div style={S.wrapper}>
-      <div style={S.topBar}>
+      <div style={isMobile ? { ...S.topBar, flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: '10px 12px' } : S.topBar}>
         <div style={S.titleSection}>
           <span style={S.symbolTitle}>{displayName}</span>
           {price != null && (
@@ -159,7 +160,7 @@ export default function Chart({
             </>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: isMobile ? 4 : 0 }}>
           <div style={S.tzBar}>
             {TIMEZONE_OPTIONS.map((tz) => (
               <button
@@ -171,7 +172,7 @@ export default function Chart({
               </button>
             ))}
           </div>
-          <div style={S.rangeBar}>
+          <div style={{ ...S.rangeBar, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             {RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.range}

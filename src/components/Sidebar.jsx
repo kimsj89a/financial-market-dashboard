@@ -31,6 +31,7 @@ export default function Sidebar({
   lang,
   onLangToggle,
   onReorder,
+  isMobile,
 }) {
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -76,7 +77,7 @@ export default function Sidebar({
   const existingSymbols = new Set(instruments.map((i) => i.symbol))
 
   return (
-    <div style={S.sidebar}>
+    <div style={isMobile ? { ...S.sidebar, width: '100%', minWidth: 0, borderRight: 'none', height: '100%' } : S.sidebar}>
       {/* Header */}
       <div style={S.header}>
         <div style={S.headerTop}>
