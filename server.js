@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000
 
 // Proxy Yahoo Finance API
 app.get('/api/yahoo/*path', async (req, res) => {
-  const path = req.params.path
+  const path = Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path
   const query = new URLSearchParams(req.query).toString()
   const url = `https://query2.finance.yahoo.com/${path}${query ? '?' + query : ''}`
 
