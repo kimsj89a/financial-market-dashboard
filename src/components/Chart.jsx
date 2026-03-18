@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createChart, ColorType } from 'lightweight-charts'
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts'
 
 const RANGE_OPTIONS = [
   { label: '1D', range: '1d', interval: '5m' },
@@ -119,7 +119,7 @@ export default function Chart({
       handleScale: true,
     })
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#00c853',
       downColor: '#ff1744',
       borderUpColor: '#00c853',
