@@ -7,8 +7,8 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // Proxy Yahoo Finance API
-app.get('/api/yahoo/*', async (req, res) => {
-  const path = req.params[0]
+app.get('/api/yahoo/*path', async (req, res) => {
+  const path = req.params.path
   const query = new URLSearchParams(req.query).toString()
   const url = `https://query2.finance.yahoo.com/${path}${query ? '?' + query : ''}`
 
@@ -28,7 +28,7 @@ app.get('/api/yahoo/*', async (req, res) => {
 
 // Serve static build
 app.use(express.static(join(__dirname, 'dist')))
-app.get('*', (req, res) => {
+app.get('*path', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'))
 })
 
