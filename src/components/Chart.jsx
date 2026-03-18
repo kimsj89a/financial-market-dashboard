@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts'
 
 const RANGE_OPTIONS = [
@@ -77,6 +77,22 @@ const styles = {
     color: 'var(--text-muted)',
     fontSize: 14,
   },
+  ohlcBar: {
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    display: 'flex',
+    gap: 16,
+    fontSize: 12,
+    fontFamily: 'monospace',
+    fontVariantNumeric: 'tabular-nums',
+    zIndex: 10,
+    pointerEvents: 'none',
+  },
+  ohlcLabel: {
+    color: 'var(--text-muted)',
+    marginRight: 4,
+  },
 }
 
 export default function Chart({
@@ -91,6 +107,7 @@ export default function Chart({
 }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
+  const [ohlc, setOhlc] = useState(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -134,6 +151,17 @@ export default function Chart({
       candleSeries.setData(chartData)
       chart.timeScale().fitContent()
     }
+
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time || !param.seriesData.size) {
+        setOhlc(null)
+        return
+      }
+      const data = param.seriesData.get(candleSeries)
+      if (data) {
+        setOhlc({ time: param.time, ...data })
+      }
+    })
 
     chartRef.current = chart
 
@@ -188,6 +216,42 @@ export default function Chart({
       </div>
       <div style={styles.chartContainer} ref={containerRef}>
         {loading && <div style={styles.loading}>Loading chart...</div>}
+        {ohlc && (
+          <div style={styles.ohlcBar}>
+            <span>
+              <span style={styles.ohlcLabel}>Date</span>
+              <span style={{ color: 'var(--text-primary)' }}>
+                {typeof ohlc.time === 'object'
+                  ? `${ohlc.time.year}-${String(ohlc.time.month).padStart(2, '0')}-${String(ohlc.time.day).padStart(2, '0')}`
+                  : new Date(ohlc.time * 1000).toLocaleDateString('ko-KR')}
+              </span>
+            </span>
+            <span>
+              <span style={styles.ohlcLabel}>O</span>
+              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
+                {ohlc.open?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+            <span>
+              <span style={styles.ohlcLabel}>H</span>
+              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
+                {ohlc.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+            <span>
+              <span style={styles.ohlcLabel}>L</span>
+              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
+                {ohlc.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+            <span>
+              <span style={styles.ohlcLabel}>C</span>
+              <span style={{ color: ohlc.close >= ohlc.open ? 'var(--green)' : 'var(--red)' }}>
+                {ohlc.close?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
