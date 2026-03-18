@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts'
 
+const TIMEZONE_OPTIONS = [
+  { label: 'KST', tz: 'Asia/Seoul', offset: 9 },
+  { label: 'ET', tz: 'America/New_York', offset: -5 },
+]
+
 const RANGE_OPTIONS = [
   { label: '1D', range: '1d', interval: '5m' },
   { label: '5D', range: '5d', interval: '15m' },
@@ -93,6 +98,23 @@ const styles = {
     color: 'var(--text-muted)',
     marginRight: 4,
   },
+  tzBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    marginRight: 16,
+  },
+  tzBtn: (isActive) => ({
+    padding: '4px 8px',
+    borderRadius: 4,
+    border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
+    background: isActive ? 'rgba(59,130,246,0.15)' : 'transparent',
+    color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  }),
 }
 
 export default function Chart({
@@ -108,6 +130,7 @@ export default function Chart({
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const [ohlc, setOhlc] = useState(null)
+  const [timezone, setTimezone] = useState(TIMEZONE_OPTIONS[0])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -202,7 +225,19 @@ export default function Chart({
             </>
           )}
         </div>
-        <div style={styles.rangeBar}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={styles.tzBar}>
+            {TIMEZONE_OPTIONS.map((tz) => (
+              <button
+                key={tz.label}
+                style={styles.tzBtn(timezone.label === tz.label)}
+                onClick={() => setTimezone(tz)}
+              >
+                {tz.label}
+              </button>
+            ))}
+          </div>
+          <div style={styles.rangeBar}>
           {RANGE_OPTIONS.map((opt) => (
             <button
               key={opt.range}
@@ -212,6 +247,7 @@ export default function Chart({
               {opt.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
       <div style={styles.chartContainer} ref={containerRef}>
@@ -223,7 +259,11 @@ export default function Chart({
               <span style={{ color: 'var(--text-primary)' }}>
                 {typeof ohlc.time === 'object'
                   ? `${ohlc.time.year}-${String(ohlc.time.month).padStart(2, '0')}-${String(ohlc.time.day).padStart(2, '0')}`
-                  : new Date(ohlc.time * 1000).toLocaleDateString('ko-KR')}
+                  : new Date(ohlc.time * 1000).toLocaleString('ko-KR', {
+                      timeZone: timezone.tz,
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                      ...(selectedRange === '1d' || selectedRange === '5d' ? { hour: '2-digit', minute: '2-digit' } : {}),
+                    })}
               </span>
             </span>
             <span>
