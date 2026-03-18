@@ -9,6 +9,8 @@ const RANGE_OPTIONS = [
   { label: 'YTD', range: 'ytd', interval: '1d' },
   { label: '1Y', range: '1y', interval: '1d' },
   { label: '5Y', range: '5y', interval: '1wk' },
+  { label: '10Y', range: '10y', interval: '1mo' },
+  { label: 'MAX', range: 'max', interval: '1mo' },
 ]
 
 const styles = {
